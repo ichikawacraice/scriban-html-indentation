@@ -4,6 +4,10 @@
   "description": "Indentation for a scriban in html files",
   "version": "0.0.1",
   "publisher": "ichikawa",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ichikawacraice/scriban-html-indentation.git"
+  },
   "license": "MIT",
   "engines": {
     "vscode": "^1.108.1"
