@@ -1,14 +1,15 @@
 {
   "name": "scriban-html-indentation",
   "displayName": "Scriban in HTML Indentation",
-  "description": "Indentation for a scriban in html files",
-  "version": "0.0.1",
+  "description": "Indentation for Scriban in HTML files",
+  "version": "0.0.2",
   "publisher": "ichikawa",
   "repository": {
     "type": "git",
     "url": "https://github.com/ichikawacraice/scriban-html-indentation.git"
   },
   "license": "MIT",
+  "icon": "scriban-html-indentation.png",
   "engines": {
     "vscode": "^1.105.1"
   },
