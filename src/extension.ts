@@ -226,6 +226,106 @@ function formatWithHtmlLanguageService(text: string): string {
 	return TextDocument.applyEdits(document, edits);
 }
 
+function collapseMultilineHtmlTags(text: string): string {
+	const lines = text.split(/\r?\n/);
+	const output: string[] = [];
+	let buffer: string | null = null;
+	let quote: '"' | "'" | null = null;
+
+	const flush = () => {
+		if (buffer !== null) {
+			output.push(buffer);
+			buffer = null;
+		}
+	};
+
+	const findTagEnd = (
+		value: string,
+		startIndex: number,
+		currentQuote: '"' | "'" | null,
+	): { endIndex: number; quote: '"' | "'" | null } => {
+		let q = currentQuote;
+		for (let i = startIndex; i < value.length; i += 1) {
+			const char = value[i];
+			if (q) {
+				if (char === q) {
+					q = null;
+				}
+				continue;
+			}
+			if (char === '"' || char === "'") {
+				q = char;
+				continue;
+			}
+			if (char === '>') {
+				return { endIndex: i, quote: null };
+			}
+		}
+		return { endIndex: -1, quote: q };
+	};
+
+	const shouldStartCollapsing = (line: string, index: number): boolean => {
+		if (line.startsWith('<!--', index)) {
+			return false;
+		}
+		if (line.startsWith('<!', index) || line.startsWith('<?', index)) {
+			return false;
+		}
+		if (line.startsWith('</', index)) {
+			return false;
+		}
+		const after = line.slice(index + 1);
+		return /^\s*[A-Za-z]/.test(after);
+	};
+
+	for (const line of lines) {
+		if (buffer === null) {
+			let searchIndex = 0;
+			let startIndex = -1;
+			let scan = { endIndex: -1, quote: null as '"' | "'" | null };
+
+			while (searchIndex < line.length) {
+				const idx = line.indexOf('<', searchIndex);
+				if (idx === -1) {
+					break;
+				}
+				if (!shouldStartCollapsing(line, idx)) {
+					searchIndex = idx + 1;
+					continue;
+				}
+				scan = findTagEnd(line, idx, null);
+				if (scan.endIndex === -1) {
+					startIndex = idx;
+					break;
+				}
+				searchIndex = idx + 1;
+			}
+
+			if (startIndex === -1) {
+				output.push(line);
+				continue;
+			}
+
+			quote = scan.quote;
+			buffer = line.slice(0, startIndex) + line.slice(startIndex).trimEnd();
+			continue;
+		}
+
+		const trimmed = line.trim();
+		if (trimmed.length > 0) {
+			buffer += ` ${trimmed}`;
+			const scan = findTagEnd(trimmed, 0, quote);
+			quote = scan.quote;
+			if (scan.endIndex !== -1) {
+				flush();
+			}
+		}
+	}
+
+	flush();
+	return output.join('\n');
+}
+
 function getIndentUnit(document: vscode.TextDocument): string {
 	const config = vscode.workspace.getConfiguration('scribanIndent', document.uri);
 	const tabsPerIndent = config.get<number>('tabsPerIndent', 2);
@@ -304,7 +404,8 @@ function formatScribanHtmlDocument(
 	const restoredScriban = restoreScribanTags(htmlFormatted, protectedScriban.tags);
 	const restored = restoreStyleScribanBlocks(restoredScriban, protectedStyles.blocks);
 	const indentUnit = getIndentUnit(document);
-	return applyScribanIndentation(restored, indentUnit);
+	const collapsed = collapseMultilineHtmlTags(restored);
+	return applyScribanIndentation(collapsed, indentUnit);
 }
 
 class ScribanHtmlFormatter implements vscode.DocumentFormattingEditProvider {

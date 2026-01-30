@@ -11,7 +11,7 @@
   "license": "MIT",
   "icon": "scriban-html-indentation.png",
   "engines": {
-    "vscode": "^1.105.1"
+    "vscode": "^1.104.0"
   },
   "categories": [
     "Other"
