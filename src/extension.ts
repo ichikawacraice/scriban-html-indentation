@@ -331,7 +331,7 @@ class ScribanHtmlFormatter implements vscode.DocumentFormattingEditProvider {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-	console.log('Congratulations, your extension "scriban-indent" is now active!');
+	console.log('Congratulations, your extension "scriban-html-indentation" is now active!');
 
 	const formatter = vscode.languages.registerDocumentFormattingEditProvider(
 		{ language: 'html' },

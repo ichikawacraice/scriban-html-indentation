@@ -1,4 +1,4 @@
-# scriban-indent
+# scriban-html-indentation
 
 Formatador para arquivos HTML com tags Scriban (`{{ ... }}`, `{{~ ... ~}}`).
 
@@ -19,12 +19,12 @@ Formatador para arquivos HTML com tags Scriban (`{{ ... }}`, `{{~ ... ~}}`).
 ```json
 {
   "[html]": {
-    "editor.defaultFormatter": "<publisher>.scriban-indent"
+    "editor.defaultFormatter": "ichikawa.scriban-html-indentation"
   }
 }
 ```
 
-Use o ID exato da extensão mostrado na aba Extensions (ex.: `publisher.scriban-indent`).
+Use o ID exato da extensão mostrado na aba Extensions (ex.: `ichikawa.scriban-html-indentation`).
 
 Se você usa Prettier, defina este formatador como padrão para `[html]` se quiser que HTML+Scriban seja formatado por esta extensão.
 
