@@ -36,17 +36,6 @@ Se você usa Prettier, defina este formatador como padrão para `[html]` se quis
 }
 ```
 
-### Testar a extensão (Run and Debug)
-
-1. Compile antes: no terminal, `yarn compile`.
-2. Abra **Run and Debug** (ícone ou `Ctrl+Shift+D` / `Cmd+Shift+D`).
-3. No dropdown, escolha **"Run Extension (no build)"** e clique em ▶️ (ou F5).
-4. Deve abrir uma nova janela "[Extension Development Host]". Nela, abra a pasta do projeto e um `.html` com Scriban e use Format Document.
-
-Se **"Run Extension"** (com build) não iniciar, use **"Run Extension (no build)"** depois de rodar `yarn compile` no terminal.
-
-No **Cursor**, o launch está configurado com `"runtimeExecutable": "${execPath}"` para usar o executável do Cursor (e não o do VS Code), evitando conflito quando os dois estão instalados.
-
 ## Possíveis extensões futuras
 
 - **Espaço em torno de operadores** no Scriban (ex.: `x+y` → `x + y`).
