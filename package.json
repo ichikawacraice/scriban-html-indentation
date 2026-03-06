@@ -2,7 +2,7 @@
   "name": "scriban-html-indentation",
   "displayName": "Scriban in HTML Indentation",
   "description": "Indentation for Scriban in HTML files",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "ichikawa",
   "repository": {
     "type": "git",
