@@ -92,16 +92,12 @@ function extractScribanSegments(
 	);
 }
 
-function analyzeScribanSegments(segments: string[]) {
-	let openCount = 0;
-	let middleCount = 0;
-	let closeCount = 0;
+function analyzeScribanSegments(line: string, segments: string[]) {
+	const closeStart = /^\s*end\b/i;
+	const middleStart = /^\s*(else|elsif|when)\b/i;
+	const openStart = /^\s*(if|for|case|while|capture|wrap)\b/i;
 
-	// Só conta keywords quando são o comando principal no início do segmento
-	// (evita contar "end" dentro de expressões como ;end) em lambdas)
-	const closeStart = /^\s*end\b/;
-	const middleStart = /^\s*(else|elsif|when)\b/;
-	const openStart = /^\s*(if|for|case|while|capture|wrap)\b/;
+	let scribanNetChange = 0;
 
 	for (const segment of segments) {
 		const trimmed = segment
@@ -109,15 +105,31 @@ function analyzeScribanSegments(segments: string[]) {
 			.replace(/[\s~-]+$/, '')
 			.toLowerCase();
 		if (closeStart.test(trimmed)) {
-			closeCount += 1;
-		} else if (middleStart.test(trimmed)) {
-			middleCount += 1;
+			scribanNetChange -= 1;
 		} else if (openStart.test(trimmed)) {
-			openCount += 1;
+			scribanNetChange += 1;
 		}
 	}
 
-	return { openCount, middleCount, closeCount };
+	let isLeadingClose = false;
+	let isLeadingMiddle = false;
+
+	if (line.trim().startsWith('{{')) {
+		const firstMatch = segments[0];
+		if (firstMatch) {
+			const trimmed = firstMatch
+				.replace(/^[\s~-]+/, '')
+				.replace(/[\s~-]+$/, '')
+				.toLowerCase();
+			if (closeStart.test(trimmed)) {
+				isLeadingClose = true;
+			} else if (middleStart.test(trimmed)) {
+				isLeadingMiddle = true;
+			}
+		}
+	}
+
+	return { scribanNetChange, isLeadingClose, isLeadingMiddle };
 }
 
 function analyzeHtmlLine(line: string) {
@@ -353,15 +365,15 @@ function applyScribanIndentation(text: string, indentUnit: string): string {
 
 		const wasInScribanTag = state.inScribanTag;
 		const scribanSegments = extractScribanSegments(original, state);
-		const { openCount, middleCount, closeCount } = analyzeScribanSegments(scribanSegments);
+		const { scribanNetChange, isLeadingClose, isLeadingMiddle } = analyzeScribanSegments(original, scribanSegments);
 		const { openingTags, closingTags, leadingClosings } = analyzeHtmlLine(original);
 
-		const preDecrease = closeCount + middleCount + leadingClosings;
-		indentLevel = Math.max(indentLevel - preDecrease, 0);
+		const preDecrease = (isLeadingClose ? 1 : 0) + (isLeadingMiddle ? 1 : 0) + leadingClosings;
+		const printedIndentLevel = Math.max(indentLevel - preDecrease, 0);
 
 		const isScribanClosingOnly = /^\s*[-~]?\s*}}$/.test(original);
 		const tagIndentOffset = wasInScribanTag && !isScribanClosingOnly ? 1 : 0;
-		const indentCount = indentLevel + tagIndentOffset;
+		const indentCount = printedIndentLevel + tagIndentOffset;
 
 		// Fechamento de bloco multi-linha: usa o mesmo recuo da abertura
 		const closingIndentCount =
@@ -376,9 +388,9 @@ function applyScribanIndentation(text: string, indentUnit: string): string {
 			scribanBlockOpenIndent.push(closingIndentCount);
 		}
 
-		const remainingClosings = Math.max(0, closingTags - leadingClosings);
+		const htmlNetChange = openingTags - closingTags;
 		indentLevel = Math.max(
-			indentLevel + openCount + middleCount + openingTags - remainingClosings,
+			indentLevel + scribanNetChange + htmlNetChange,
 			0,
 		);
 	}
@@ -431,6 +443,126 @@ class ScribanHtmlFormatter implements vscode.DocumentFormattingEditProvider {
 	}
 }
 
+const SCRIBAN_KEYWORDS = new Set([
+	'if', 'else', 'elsif', 'end', 'for', 'in', 'while', 'capture',
+	'wrap', 'case', 'when', 'ret', 'break', 'continue', 'with', 'readonly', 'import', 'include', 'render'
+]);
+
+class ScribanComponentDefinitionProvider implements vscode.DefinitionProvider {
+	async provideDefinition(
+		document: vscode.TextDocument,
+		position: vscode.Position,
+		_token: vscode.CancellationToken
+	): Promise<vscode.Definition | vscode.LocationLink[] | undefined> {
+		// Pega a string no formato 'components/header.html' (com aspas) ou 'wake_modal' (sem aspas)
+		// Isso captura identificadores como `wake_modal` e caminhos como `"components/header.html"`
+		const wordRange = document.getWordRangeAtPosition(position, /['"][a-zA-Z0-9_.\-\/]+['"]|[a-zA-Z0-9_-]+/);
+		if (!wordRange) {
+			return undefined;
+		}
+
+		let componentName = document.getText(wordRange);
+		
+		// Remover aspas caso existam
+		componentName = componentName.replace(/['"]/g, '');
+
+		// Se a palavra for uma keyword do Scriban, não buscar como arquivo
+		if (SCRIBAN_KEYWORDS.has(componentName)) {
+			return undefined;
+		}
+
+		// Garante que só funcione dentro de tags Scriban {{ ... }}
+		const lineText = document.lineAt(position.line).text;
+		if (!lineText.includes('{{') && !lineText.includes('}}')) {
+			return undefined;
+		}
+
+		// Extrai apenas o nome do arquivo se vier com caminho "pasta/pasta/arquivo" -> "arquivo"
+		const fileName = componentName.substring(componentName.lastIndexOf('/') + 1);
+		
+		// Se o componente não tiver extensão na string, procura por qualquer extensão
+		// Na Wake geralmente são .html 
+		const searchName = fileName.includes('.') ? fileName : `${fileName}.*`;
+		
+		// Procura na workspace por arquivos com esse nome (em qualquer pasta, ex: "Components" ou "home")
+		const files = await vscode.workspace.findFiles(`**/${searchName}`, '**/node_modules/**');
+
+		if (files.length > 0) {
+			// Retorna todas as ocorrências encontradas.
+			return files.map(uri => new vscode.Location(uri, new vscode.Position(0, 0)));
+		}
+
+		return undefined;
+	}
+}
+
+let scribanDecorationType: vscode.TextEditorDecorationType;
+
+function updateDecorationSettings() {
+	const config = vscode.workspace.getConfiguration('scribanIndent.decoration');
+	const color = config.get<string>('color') || '#FE0877';
+	const fontWeight = config.get<string>('fontWeight') || 'bold';
+	const backgroundColor = config.get<string>('backgroundColor') || 'rgba(150, 150, 150, 0.2)';
+	const borderRadius = config.get<string>('borderRadius') || '4px';
+
+	if (scribanDecorationType) {
+		scribanDecorationType.dispose();
+	}
+
+	scribanDecorationType = vscode.window.createTextEditorDecorationType({
+		color,
+		fontWeight,
+		backgroundColor,
+		borderRadius,
+	});
+
+	for (const editor of vscode.window.visibleTextEditors) {
+		updateDecorations(editor);
+	}
+}
+
+function updateDecorations(activeEditor: vscode.TextEditor | undefined) {
+	if (!activeEditor || activeEditor.document.languageId !== 'html' || !scribanDecorationType) {
+		return;
+	}
+
+	const text = activeEditor.document.getText();
+	const scribanTags: vscode.DecorationOptions[] = [];
+	
+	// Regex para encontrar os blocos Scriban
+	const regex = /\{\{[~-]?[\s\S]*?[~-]?\}\}/g;
+
+	let match;
+	while ((match = regex.exec(text))) {
+		const fullMatch = match[0];
+		
+		// Tamanho da abertura ({{, {{~, {{-)
+		let openLen = 2;
+		if (fullMatch.startsWith('{{~') || fullMatch.startsWith('{{-')) {
+			openLen = 3;
+		}
+
+		// Tamanho do fechamento (}}, ~}}, -}})
+		let closeLen = 2;
+		if (fullMatch.endsWith('~}}') || fullMatch.endsWith('-}}')) {
+			closeLen = 3;
+		}
+
+		// Destaca a abertura "{{", "{{~"
+		const startPosOpen = activeEditor.document.positionAt(match.index);
+		const endPosOpen = activeEditor.document.positionAt(match.index + openLen);
+		scribanTags.push({ range: new vscode.Range(startPosOpen, endPosOpen) });
+
+		// Destaca o fechamento "}}", "~}}"
+		const startPosClose = activeEditor.document.positionAt(match.index + fullMatch.length - closeLen);
+		const endPosClose = activeEditor.document.positionAt(match.index + fullMatch.length);
+		scribanTags.push({ range: new vscode.Range(startPosClose, endPosClose) });
+	}
+
+	// Aplica a decoração visual
+	activeEditor.setDecorations(scribanDecorationType, scribanTags);
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "scriban-html-indentation" is now active!');
 
@@ -439,7 +571,39 @@ export function activate(context: vscode.ExtensionContext) {
 		new ScribanHtmlFormatter(),
 	);
 
-	context.subscriptions.push(formatter);
+	const definitionProvider = vscode.languages.registerDefinitionProvider(
+		{ language: 'html' },
+		new ScribanComponentDefinitionProvider(),
+	);
+
+	context.subscriptions.push(formatter, definitionProvider);
+
+	updateDecorationSettings();
+
+	vscode.workspace.onDidChangeConfiguration(e => {
+		if (e.affectsConfiguration('scribanIndent.decoration')) {
+			updateDecorationSettings();
+		}
+	}, null, context.subscriptions);
+
+	// Evento disparado quando o texto muda (digitação)
+	vscode.workspace.onDidChangeTextDocument(event => {
+		if (vscode.window.activeTextEditor && event.document === vscode.window.activeTextEditor.document) {
+			updateDecorations(vscode.window.activeTextEditor);
+		}
+	}, null, context.subscriptions);
+
+	// Evento disparado ao trocar de aba/documento ativo
+	vscode.window.onDidChangeActiveTextEditor(editor => {
+		if (editor) {
+			updateDecorations(editor);
+		}
+	}, null, context.subscriptions);
+
+	// Executa a primeira vez ao iniciar a extensão, caso a aba ativa já seja um HTML
+	if (vscode.window.activeTextEditor) {
+		updateDecorations(vscode.window.activeTextEditor);
+	}
 }
 
 export function deactivate() {}

@@ -36,14 +36,23 @@ Se você usa Prettier, defina este formatador como padrão para `[html]` se quis
 }
 ```
 
-## Possíveis extensões futuras
+### Configurações visuais do Scriban (Cores)
 
-- **Espaço em torno de operadores** no Scriban (ex.: `x+y` → `x + y`).
-- **Espaço após vírgulas** em argumentos de funções Scriban.
-- **Opção de indentação** (2 tabs ou espaços) por configuração.
-- **Quebra de linha** em tags Scriban muito longas (ex.: `paths: [...]`).
-- **Normalização de HTML** (tags em minúsculo, ordem de atributos).
+Você pode customizar como as chaves do Scriban (`{{` e `}}`) são decoradas visualmente no editor. Se nada for configurado, ele usará um estilo padrão (roxa neon `bold` com fundo translúcido).
 
-## Limitações
+| Configuração | Descrição | Padrão |
+|--------------|-----------|--------|
+| `scribanIndent.decoration.color` | Cor das tags do Scriban (`{{` e `}}`). | `#FE0877` |
+| `scribanIndent.decoration.fontWeight` | Estilo da fonte. | `bold` |
+| `scribanIndent.decoration.backgroundColor` | Cor de fundo das tags. | `rgba(150, 150, 150, 0.2)` |
+| `scribanIndent.decoration.borderRadius` | Arredondamento da borda do fundo. | `4px` |
 
-- O formatador não é um parser completo de HTML/Scriban.
+Para customizar, adicione ao seu `settings.json`:
+
+```json
+{
+  "scribanIndent.decoration.color": "purple",
+  "scribanIndent.decoration.fontWeight": "normal",
+  "scribanIndent.decoration.backgroundColor": "transparent"
+}
+```

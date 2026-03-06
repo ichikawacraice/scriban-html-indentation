@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Scriban in HTML",
+  "scopeName": "text.html.scriban",
+  "injectionSelector": "L:text.html.derivative",
+  "patterns": [
+    {
+      "include": "#scriban-tags"
+    }
+  ],
+  "repository": {
+    "scriban-tags": {
+      "begin": "(\\{\\{[~-]?)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.scriban" }
+      },
+      "end": "([~-]?\\}\\})",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.scriban" }
+      },
+      "name": "meta.tag.scriban",
+      "patterns": [
+        { "include": "#scriban-content" }
+      ]
+    },
+    "scriban-content": {
+      "patterns": [
+        {
+          "match": "\\b(if|else|elsif|end|for|in|while|capture|wrap|case|when|ret|break|continue|with|readonly|import|include|render)\\b",
+          "name": "keyword.control.scriban"
+        },
+        {
+          "match": "\\b(true|false|null)\\b",
+          "name": "constant.language.scriban"
+        },
+        {
+          "match": "('([^']*)'|\"([^\"]*)\")",
+          "name": "string.quoted.scriban"
+        },
+        {
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_-]*)\\b(?=\\s*:)",
+          "name": "entity.other.attribute-name.scriban"
+        },
+        {
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_-]*)\\b",
+          "name": "variable.other.scriban"
+        },
+        {
+          "match": "==|!=|<=|>=|<|>|=|\\+|-|\\*|\\/|%",
+          "name": "keyword.operator.scriban"
+        }
+      ]
+    }
+  }
+}

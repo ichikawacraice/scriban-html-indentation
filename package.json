@@ -32,9 +32,38 @@
           ],
           "default": 2,
           "description": "Number of tab characters per indent level."
+        },
+        "scribanIndent.decoration.color": {
+          "type": "string",
+          "default": "#FE0877",
+          "description": "Color for the Scriban tags ({{ and }}). Examples: '#FE0877', 'purple', 'rgb(254, 8, 119)'"
+        },
+        "scribanIndent.decoration.fontWeight": {
+          "type": "string",
+          "default": "bold",
+          "description": "Font weight for the Scriban tags. Examples: 'normal', 'bold', '600'"
+        },
+        "scribanIndent.decoration.backgroundColor": {
+          "type": "string",
+          "default": "rgba(150, 150, 150, 0.2)",
+          "description": "Background color for the Scriban tags. Use rgba for transparency."
+        },
+        "scribanIndent.decoration.borderRadius": {
+          "type": "string",
+          "default": "4px",
+          "description": "Border radius for the background color of the Scriban tags."
         }
       }
-    }
+    },
+    "grammars": [
+      {
+        "scopeName": "text.html.scriban",
+        "injectTo": [
+          "text.html.derivative"
+        ],
+        "path": "./syntaxes/scriban.tmLanguage.json"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "yarn run package",
